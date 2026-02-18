@@ -1,0 +1,25 @@
+openapi: 3.1.0
+info:
+  title: Databiomics execution service
+  version: 0.2.0
+paths:
+  /health:
+    get:
+      summary: Health check
+      responses:
+        '200': { description: OK }
+  /execution/generate:
+    post:
+      summary: Gera tasks/decisions/risks/open_questions de transcript
+      responses:
+        '200': { description: Objetos de execução gerados }
+  /execution/{meeting_id}:
+    get:
+      summary: Lista board de execução por meeting
+      responses:
+        '200': { description: Objetos de execução }
+  /execution/{meeting_id}/export:
+    get:
+      summary: Exporta execução em JSON/CSV
+      responses:
+        '200': { description: Export pronto }

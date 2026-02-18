@@ -1,0 +1,17 @@
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+model OutboxEvent {
+  id          String   @id @default(cuid())
+  aggregateId String
+  eventType   String
+  payload     Json
+  publishedAt DateTime?
+  createdAt   DateTime @default(now())
+}
