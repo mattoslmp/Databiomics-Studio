@@ -1,0 +1,17 @@
+openapi: 3.1.0
+info:
+  title: Databiomics transcription service
+  version: 0.1.0
+paths:
+  /health:
+    get:
+      summary: Health check
+      responses:
+        '200':
+          description: OK
+  /v1/events/outbox:
+    get:
+      summary: Outbox contract preview
+      responses:
+        '200':
+          description: Contract payload
