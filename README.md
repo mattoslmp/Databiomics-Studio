@@ -36,13 +36,13 @@ Serviço `research` expõe:
 - `/deck/:deck_id/references/export`
 - `/deck/:deck_id/references/render-slides`
 
-## Download de modelos Llama 3.2 (Admin)
-Sim: no MVP há **duas formas** de iniciar fluxo de download para `1B` e `3B`.
+## Download de modelos (Admin: Llama 3.2 + MedGemma)
+Sim: no MVP há **duas formas** de iniciar fluxo de download para Llama 3.2 e MedGemma.
 
 ### 1) Via interface/API de admin
 - `GET /admin/models` lista catálogo e status.
 - `POST /admin/models/download` aceita:
-  - `model_id`: `llama-3.2-1b-instruct` ou `llama-3.2-3b-instruct`
+  - `model_id`: `llama-3.2-1b-instruct`, `llama-3.2-3b-instruct`, `google/medgemma-1.5-4b-it` ou `google/medgemma-4b-it`
   - `transport`: `ui` ou `python-client`
 
 Exemplo:
@@ -58,6 +58,8 @@ Script:
 ```bash
 python workers/research-worker-python/client/download_model.py --model llama-3.2-3b-instruct
 python workers/research-worker-python/client/download_model.py --model llama-3.2-1b-instruct
+python workers/research-worker-python/client/download_model.py --model google/medgemma-1.5-4b-it
+python workers/research-worker-python/client/download_model.py --model google/medgemma-4b-it
 ```
 
 O script imprime instruções usando `huggingface_hub.snapshot_download` e `huggingface-cli`.

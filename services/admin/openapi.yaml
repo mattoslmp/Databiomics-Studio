@@ -1,7 +1,7 @@
 openapi: 3.1.0
 info:
   title: Databiomics admin service
-  version: 0.2.0
+  version: 0.3.0
 paths:
   /health:
     get:
@@ -17,7 +17,7 @@ paths:
           description: Contract payload
   /admin/models:
     get:
-      summary: Lista modelos Llama suportados pelo ambiente
+      summary: Lista modelos suportados (Llama + MedGemma)
       responses:
         '200':
           description: Lista de modelos com estado de instalação
@@ -34,7 +34,11 @@ paths:
               properties:
                 model_id:
                   type: string
-                  enum: [llama-3.2-1b-instruct, llama-3.2-3b-instruct]
+                  enum:
+                    - llama-3.2-1b-instruct
+                    - llama-3.2-3b-instruct
+                    - google/medgemma-1.5-4b-it
+                    - google/medgemma-4b-it
                 transport:
                   type: string
                   enum: [ui, python-client]

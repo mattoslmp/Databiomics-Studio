@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Databiomics Studio research worker client for local Llama model downloads.
+"""Databiomics Studio research worker client for local model downloads.
 
 MVP helper script used by admin workflow.
 """
@@ -13,6 +13,8 @@ from pathlib import Path
 SUPPORTED = {
     "llama-3.2-1b-instruct": "meta-llama/Llama-3.2-1B-Instruct",
     "llama-3.2-3b-instruct": "meta-llama/Llama-3.2-3B-Instruct",
+    "google/medgemma-1.5-4b-it": "google/medgemma-1.5-4b-it",
+    "google/medgemma-4b-it": "google/medgemma-4b-it",
 }
 
 
@@ -21,19 +23,19 @@ def build_download_instructions(model_id: str, target_dir: Path) -> dict:
     return {
         "model_id": model_id,
         "repo_id": repo_id,
-        "target_dir": str(target_dir / model_id),
+        "target_dir": str(target_dir / model_id.replace("/", "__")),
         "python_example": (
             "from huggingface_hub import snapshot_download\n"
-            f"snapshot_download(repo_id='{repo_id}', local_dir='{target_dir / model_id}')"
+            f"snapshot_download(repo_id='{repo_id}', local_dir='{target_dir / model_id.replace('/', '__')}')"
         ),
         "cli_example": (
-            f"huggingface-cli download {repo_id} --local-dir {target_dir / model_id}"
+            f"huggingface-cli download {repo_id} --local-dir {target_dir / model_id.replace('/', '__')}"
         ),
     }
 
 
 def main() -> int:
-    parser = argparse.ArgumentParser(description="Download helper for Llama 3.2 models")
+    parser = argparse.ArgumentParser(description="Download helper for Databiomics models")
     parser.add_argument("--model", required=True, choices=SUPPORTED.keys())
     parser.add_argument(
         "--target-dir",

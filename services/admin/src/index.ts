@@ -2,39 +2,69 @@ import Fastify from 'fastify';
 import { randomUUID } from 'node:crypto';
 import { z } from 'zod';
 
-type LlamaModelId = 'llama-3.2-1b-instruct' | 'llama-3.2-3b-instruct';
+type ModelId =
+  | 'llama-3.2-1b-instruct'
+  | 'llama-3.2-3b-instruct'
+  | 'google/medgemma-1.5-4b-it'
+  | 'google/medgemma-4b-it';
 
 type ModelRecord = {
-  id: LlamaModelId;
+  id: ModelId;
   title: string;
-  provider: 'meta';
-  sizeLabel: '1B' | '3B';
+  provider: 'meta' | 'google';
+  sizeLabel: '1B' | '3B' | '4B';
+  modality: 'Text-to-Text' | 'Image-Text-to-Text';
   status: 'available' | 'downloading' | 'installed';
   downloadSource: 'huggingface';
   localPath?: string;
   updatedAt: string;
 };
 
-const modelCatalog = new Map<LlamaModelId, ModelRecord>([
-  ['llama-3.2-1b-instruct', {
+const modelSeed: ModelRecord[] = [
+  {
     id: 'llama-3.2-1b-instruct',
     title: 'Llama 3.2 1B Instruct',
     provider: 'meta',
     sizeLabel: '1B',
+    modality: 'Text-to-Text',
     status: 'available',
     downloadSource: 'huggingface',
     updatedAt: new Date().toISOString()
-  }],
-  ['llama-3.2-3b-instruct', {
+  },
+  {
     id: 'llama-3.2-3b-instruct',
     title: 'Llama 3.2 3B Instruct',
     provider: 'meta',
     sizeLabel: '3B',
+    modality: 'Text-to-Text',
     status: 'available',
     downloadSource: 'huggingface',
     updatedAt: new Date().toISOString()
-  }]
-]);
+  },
+  {
+    id: 'google/medgemma-1.5-4b-it',
+    title: 'MedGemma 1.5 4B IT',
+    provider: 'google',
+    sizeLabel: '4B',
+    modality: 'Image-Text-to-Text',
+    status: 'available',
+    downloadSource: 'huggingface',
+    updatedAt: new Date().toISOString()
+  },
+  {
+    id: 'google/medgemma-4b-it',
+    title: 'MedGemma 4B IT',
+    provider: 'google',
+    sizeLabel: '4B',
+    modality: 'Image-Text-to-Text',
+    status: 'available',
+    downloadSource: 'huggingface',
+    updatedAt: new Date().toISOString()
+  }
+];
+
+const modelCatalog = new Map<ModelId, ModelRecord>(modelSeed.map((entry) => [entry.id, entry]));
+const allowedModelIds = modelSeed.map((entry) => entry.id) as [ModelId, ...ModelId[]];
 
 const envSchema = z.object({
   PORT: z.coerce.number().default(3000),
@@ -42,7 +72,7 @@ const envSchema = z.object({
 });
 
 const triggerDownloadSchema = z.object({
-  model_id: z.enum(['llama-3.2-1b-instruct', 'llama-3.2-3b-instruct']),
+  model_id: z.enum(allowedModelIds),
   transport: z.enum(['ui', 'python-client']).default('ui')
 });
 
@@ -81,7 +111,7 @@ app.post('/admin/models/download', async (req) => {
   };
   modelCatalog.set(payload.model_id, updated);
 
-  const command = `python workers/research-worker-python/client/download_model.py --model ${payload.model_id}`;
+  const command = `python workers/research-worker-python/client/download_model.py --model '${payload.model_id}'`;
   return {
     ok: true,
     job_id: randomUUID(),
