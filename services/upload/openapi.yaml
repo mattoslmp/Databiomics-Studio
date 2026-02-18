@@ -1,17 +1,36 @@
 openapi: 3.1.0
 info:
   title: Databiomics upload service
-  version: 0.1.0
+  version: 0.2.0
 paths:
   /health:
     get:
       summary: Health check
       responses:
-        '200':
-          description: OK
-  /v1/events/outbox:
-    get:
-      summary: Outbox contract preview
+        '200': { description: OK }
+  /uploads/tus:
+    post:
+      summary: Cria sessão de upload resumível (TUS)
       responses:
-        '200':
-          description: Contract payload
+        '200': { description: Sessão criada }
+  /uploads/tus/{id}:
+    head:
+      summary: Retorna offset e tamanho esperado da sessão TUS
+      responses:
+        '204': { description: Offset retornado }
+    patch:
+      summary: Envia chunk binário para sessão TUS
+      responses:
+        '204': { description: Chunk aceito }
+        '409': { description: Offset inválido }
+  /uploads/tus/{id}/complete:
+    post:
+      summary: Finaliza upload e valida hash opcional
+      responses:
+        '200': { description: Sessão finalizada }
+  /uploads/sessions/{id}:
+    get:
+      summary: Consulta status de upload_session
+      responses:
+        '200': { description: Sessão encontrada }
+        '404': { description: Sessão não encontrada }

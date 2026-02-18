@@ -131,3 +131,20 @@ make lint
 ## Upload resumível
 - Requisito arquitetural já documentado para TUS/multipart com sessões (`upload_sessions`).
 - Implementação resumível completa no gateway/upload-service está em fase seguinte do roadmap técnico.
+
+
+## Upload resumível real (TUS) implementado
+No `upload-service`:
+- `POST /uploads/tus`
+- `HEAD /uploads/tus/:id`
+- `PATCH /uploads/tus/:id`
+- `POST /uploads/tus/:id/complete`
+- `GET /uploads/sessions/:id`
+
+Detalhes: `docs/upload-resumable.md`.
+
+## Web + Flutter usando o mesmo contrato
+- SDK TS: `packages/sdk-ts/src/upload-client.ts`
+- SDK Dart: `packages/sdk-dart/lib/upload_client.dart`
+- Exemplo Web: `apps/frontend-web/src/upload-flow.ts`
+- Exemplo Flutter: `apps/mobile-app-flutter/lib/upload_flow.dart`
