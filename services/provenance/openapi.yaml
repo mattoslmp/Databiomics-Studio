@@ -1,17 +1,26 @@
 openapi: 3.1.0
 info:
   title: Databiomics provenance service
-  version: 0.1.0
+  version: 0.2.0
 paths:
   /health:
     get:
       summary: Health check
       responses:
-        '200':
-          description: OK
-  /v1/events/outbox:
-    get:
-      summary: Outbox contract preview
+        '200': { description: OK }
+  /provenance/issue:
+    post:
+      summary: Emite receipt assinado para artefato
       responses:
-        '200':
-          description: Contract payload
+        '200': { description: Receipt emitido }
+  /verify/{content_id}:
+    get:
+      summary: Verifica assinatura pública sem PII
+      responses:
+        '200': { description: Assinatura válida/inválida }
+        '404': { description: Receipt não encontrado }
+  /provenance/deletion-receipt:
+    post:
+      summary: Emite deletion receipt assinado
+      responses:
+        '200': { description: Deletion receipt emitido }

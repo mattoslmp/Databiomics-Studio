@@ -64,6 +64,36 @@ python workers/research-worker-python/client/download_model.py --model google/me
 
 O script imprime instruções usando `huggingface_hub.snapshot_download` e `huggingface-cli`.
 
+
+## Como os modelos serão integrados no app
+Resumo rápido:
+- Admin instala/gerencia catálogo via `GET /admin/models` e `POST /admin/models/download`.
+- Worker Python materializa os pesos no ambiente de execução.
+- Serviços do app chamam um worker de inferência por `job` (não chamam o modelo direto no front).
+- UI Web/Mobile escolhe modelo por tarefa e acompanha status.
+
+Detalhamento completo em: `docs/model-integration.md`.
+
+
+
+## Contexto de uso no app (importante)
+- O produto continua sendo de **criação de avatar e vídeo** (pipeline `avatar-builder` + `voice` + `render`).
+- Llama/MedGemma não renderizam avatar; eles apoiam inteligência de conteúdo (Research, Notes, Q&A, roteiro, resumo).
+- Portanto, funcionam como camada complementar ao fluxo de avatar.
+
+
+## Sessão específica Pesquisa + LLM (implementada)
+Fluxo já implementado no `research-service`:
+1. `POST /research/sessions` cria sessão com `workspace_id`, `user_id`, `topic`, `model_id`, `provider`.
+2. `GET /research/search?provider=&q=` busca papers via adapter real (Crossref/arXiv) ou `fixture`.
+3. `POST /research/sessions/:id/attach` anexa itens selecionados à sessão.
+4. `POST /research/sessions/:id/generate-insights` gera bullets:
+   - usa LLM remoto OpenAI-compatible se `LLM_BASE_URL` estiver configurado;
+   - fallback robusto para engine local extractiva com referências.
+5. `POST /deck/:deck_id/research/summarize` e `/references/export` usam a mesma sessão.
+
+Isso cria um contexto contínuo de pesquisa + geração (sem estado perdido), pronto para consumo por Web/App.
+
 ## SDKs
 OpenAPI por serviço em `services/*/openapi.yaml` para gerar SDK TS e Dart via CI.
 
@@ -71,3 +101,33 @@ OpenAPI por serviço em `services/*/openapi.yaml` para gerar SDK TS e Dart via C
 ```bash
 pnpm -r --if-present test
 ```
+
+
+## Scripts de desenvolvimento
+```bash
+make dev
+make test
+make lint
+```
+
+## Verify + Share + Referral (implementado no MVP técnico)
+- Provenance:
+  - `POST /provenance/issue` emite receipt assinado (Ed25519)
+  - `GET /verify/:content_id` valida assinatura sem expor PII
+  - `POST /provenance/deletion-receipt` emite receipt de deleção
+- Growth:
+  - `POST /growth/share-pages` cria share page com disclosure
+  - `GET /share/:slug` exibe dados públicos sem PII
+  - `POST /growth/referrals/apply` aplica referral com anti-fraude básico (cooldown por IP hash)
+
+## Meeting -> Notes -> Execution (implementado no MVP técnico)
+- Notes & Knowledge:
+  - `POST /notes/generate` gera summary + bullets + evidence chunks
+  - `GET /notes/:meeting_id` recupera notas e evidências
+- Execution:
+  - `POST /execution/generate` gera tasks/decisions/risks/open_questions
+  - `GET /execution/:meeting_id/export?format=json|csv`
+
+## Upload resumível
+- Requisito arquitetural já documentado para TUS/multipart com sessões (`upload_sessions`).
+- Implementação resumível completa no gateway/upload-service está em fase seguinte do roadmap técnico.

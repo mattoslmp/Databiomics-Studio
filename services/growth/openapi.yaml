@@ -1,17 +1,31 @@
 openapi: 3.1.0
 info:
   title: Databiomics growth service
-  version: 0.1.0
+  version: 0.2.0
 paths:
   /health:
     get:
       summary: Health check
       responses:
-        '200':
-          description: OK
-  /v1/events/outbox:
-    get:
-      summary: Outbox contract preview
+        '200': { description: OK }
+  /growth/share-pages:
+    post:
+      summary: Cria share page com disclosure
       responses:
-        '200':
-          description: Contract payload
+        '200': { description: Share criada }
+  /share/{slug}:
+    get:
+      summary: Página pública de share sem PII
+      responses:
+        '200': { description: Conteúdo compartilhável }
+        '404': { description: Share não encontrada }
+  /growth/referrals/apply:
+    post:
+      summary: Aplica referral com anti-fraude básico
+      responses:
+        '200': { description: Referral processado }
+  /growth/credits/{user_id}:
+    get:
+      summary: Lista créditos de minutos por usuário
+      responses:
+        '200': { description: Créditos }
