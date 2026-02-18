@@ -1,150 +1,231 @@
 # Databiomics Studio
 
-Monorepo MVP API-first para Web + PWA + Mobile (Flutter) com microserviços Node.js/TypeScript e workers Python.
+Monorepo API-first do **Databiomics Studio** para MVP SaaS com microserviços desde o início, foco em:
+- Avatar personalizado + vídeo
+- Meeting → Transcript → Notes → Execution
+- Verify/Share/Referral
+- Pesquisa + LLM (RAG por sessão)
+- Multi-cliente (Web + Flutter) consumindo o mesmo contrato OpenAPI
 
-## Arquitetura
-- `services/*`: 23 microserviços com Fastify, OpenAPI, Prisma, migration inicial de outbox e teste mínimo.
-- `workers/*`: placeholders para media/asr/research em Python 3.11.
-- `apps/frontend-web` e `apps/mobile-app-flutter`: scaffolds iniciais.
-- `infra/docker-compose.yml`: Postgres, Redis, NATS e MinIO para desenvolvimento.
+> Idioma padrão do produto: PT-BR (roadmap EN/ES).
 
-## Pré-requisitos
-- Git, Docker/Compose, Node.js LTS + pnpm, Python 3.11, FFmpeg, Miniconda.
-- Produção: Unreal Engine MRQ headless, NVIDIA Audio2Face, LiveKit, observabilidade OTel.
+---
 
-## Rodar local
+## 1) Arquitetura atual do repositório
+
+### Serviços (Node.js + Fastify + Prisma + OpenAPI)
+`services/`
+- `gateway`, `auth`, `workspace`, `billing`, `consent`, `policy`, `profile`
+- `upload`, `avatar-builder`, `voice`, `deck`, `render`, `meetings`, `avatar-bot`
+- `transcription`, `notes-knowledge`, `execution`, `provenance`, `growth`, `marketplace`
+- `research`, `notification`, `admin`, `integrations`
+
+Cada serviço possui:
+- `src/`
+- `prisma/` + `migrations/`
+- `openapi.yaml`
+- testes em `tests/`
+
+### Clientes e SDKs
+- Web scaffold: `apps/frontend-web/`
+- Flutter scaffold: `apps/mobile-app-flutter/`
+- SDK TS interno: `packages/sdk-ts/`
+- SDK Dart interno: `packages/sdk-dart/`
+
+### Infra local
+`infra/docker-compose.yml` sobe:
+- Postgres
+- Redis
+- NATS
+- MinIO
+- LiveKit
+- OTel Collector
+
+---
+
+## 2) Pré-requisitos
+
+- Docker + Docker Compose
+- Node.js LTS
+- pnpm
+- Python 3.11
+- (opcional) Flutter SDK para testar app mobile scaffold
+
+---
+
+## 3) Como rodar local
+
+### 3.1 Subir infraestrutura
 ```bash
+make dev
+```
+
+### 3.2 Rodar testes
+```bash
+make test
+```
+
+### 3.3 Validar contratos OpenAPI
+```bash
+make lint
+```
+
+### 3.4 Subir um serviço específico (exemplo)
+```bash
+cd services/research
 pnpm install
-docker compose -f infra/docker-compose.yml up -d
-pnpm --filter @databiomics/research dev
+pnpm dev
 ```
 
-## DEV MODE
-Variáveis recomendadas:
-- `MOCK_MEDIA_PIPELINE=true`
-- `RESEARCH_DEMO_FIXTURES=true`
+---
 
-## Research Assist (MVP)
-Serviço `research` expõe:
-- `/research/providers`
-- `/research/search`
-- `/research/item/:provider/:id`
-- `/research/resolve-fulltext`
-- `/deck/:deck_id/research/attach`
-- `/deck/:deck_id/research/summarize`
-- `/deck/:deck_id/references`
-- `/deck/:deck_id/references/export`
-- `/deck/:deck_id/references/render-slides`
+## 4) Upload resumível real (TUS) — implementado
 
-## Download de modelos (Admin: Llama 3.2 + MedGemma)
-Sim: no MVP há **duas formas** de iniciar fluxo de download para Llama 3.2 e MedGemma.
+Serviço: `services/upload`
 
-### 1) Via interface/API de admin
-- `GET /admin/models` lista catálogo e status.
-- `POST /admin/models/download` aceita:
-  - `model_id`: `llama-3.2-1b-instruct`, `llama-3.2-3b-instruct`, `google/medgemma-1.5-4b-it` ou `google/medgemma-4b-it`
-  - `transport`: `ui` ou `python-client`
+Endpoints:
+- `POST /uploads/tus` (criar sessão)
+- `HEAD /uploads/tus/:id` (consultar offset)
+- `PATCH /uploads/tus/:id` (enviar chunk)
+- `POST /uploads/tus/:id/complete` (finalizar / validar SHA-256)
+- `GET /uploads/sessions/:id` (status da sessão)
 
-Exemplo:
+Persistência de sessão:
+- `services/upload/.data/upload-sessions.json`
+
+Campos principais:
+- `workspace_id`, `user_id`, `upload_type`, `protocol`, `expected_size`, `received_size`, `sha256`, `status`, `metadata`
+
+Mais detalhes:
+- `docs/upload-resumable.md`
+
+---
+
+## 5) Contrato único Web + Flutter (OpenAPI/SDK)
+
+### SDK TypeScript
+- `packages/sdk-ts/src/upload-client.ts`
+
+### SDK Dart
+- `packages/sdk-dart/lib/upload_client.dart`
+
+### Exemplo Web (resume/retry por chunks)
+- `apps/frontend-web/src/upload-flow.ts`
+
+### Exemplo Flutter (mesmo contrato)
+- `apps/mobile-app-flutter/lib/upload_flow.dart`
+
+---
+
+## 6) Pesquisa + LLM com RAG por sessão — implementado
+
+Serviço: `services/research`
+
+### Providers
+- `fixture` (offline)
+- `crossref` (API pública)
+- `arxiv` (API pública)
+
+### Sessão de pesquisa
+- `POST /research/sessions`
+- `GET /research/sessions`
+- `GET /research/sessions/:id`
+- `POST /research/sessions/:id/attach`
+- `POST /research/sessions/:id/generate-insights`
+
+### RAG QA com modelo selecionado
+- `POST /research/sessions/:id/qa`
+  - usa `session.model_id` como modelo selecionado
+  - recupera contexto dos itens anexados + fallback opcional ao provider da sessão
+  - aplica retrieval top-k
+  - responde com citações (`provider:id`)
+
+### Integração com Deck
+- `POST /deck/:deck_id/research/attach`
+- `POST /deck/:deck_id/research/summarize`
+- `GET /deck/:deck_id/references`
+- `POST /deck/:deck_id/references/export`
+- `POST /deck/:deck_id/references/render-slides`
+
+### Configuração de LLM remoto
+Variáveis:
+- `LLM_BASE_URL`
+- `LLM_API_KEY` (opcional)
+
+Sem `LLM_BASE_URL`, o serviço usa fallback local extractivo para continuidade.
+
+---
+
+## 7) Verify / Share / Referral / Meeting→Execution
+
+### Provenance
+- `POST /provenance/issue`
+- `GET /verify/:content_id`
+- `POST /provenance/deletion-receipt`
+
+### Growth
+- `POST /growth/share-pages`
+- `GET /share/:slug`
+- `POST /growth/referrals/apply`
+- `GET /growth/credits/:user_id`
+
+### Notes
+- `POST /notes/generate`
+- `GET /notes/:meeting_id`
+
+### Execution
+- `POST /execution/generate`
+- `GET /execution/:meeting_id`
+- `GET /execution/:meeting_id/export?format=json|csv`
+
+---
+
+## 8) Integrations service (MVP entrada/saída)
+
+Serviço: `services/integrations`
+- `POST /integrations/import` (link/upload)
+- `POST /integrations/export` (notes/tasks)
+- `GET /integrations/jobs`
+
+---
+
+## 9) Testes executados no projeto
+
+Comando padrão:
 ```bash
-curl -X POST http://localhost:3000/admin/models/download \
-  -H "Authorization: Bearer dev-token" \
-  -H "Content-Type: application/json" \
-  -d '{"model_id":"llama-3.2-3b-instruct","transport":"ui"}'
+make test
 ```
 
-### 2) Via client Python (execução local)
-Script:
-```bash
-python workers/research-worker-python/client/download_model.py --model llama-3.2-3b-instruct
-python workers/research-worker-python/client/download_model.py --model llama-3.2-1b-instruct
-python workers/research-worker-python/client/download_model.py --model google/medgemma-1.5-4b-it
-python workers/research-worker-python/client/download_model.py --model google/medgemma-4b-it
-```
+Cobertura atual inclui:
+- health tests por serviço
+- testes de contrato (endpoints declarados)
+- testes de store de upload
 
-O script imprime instruções usando `huggingface_hub.snapshot_download` e `huggingface-cli`.
+---
 
+## 10) Limites atuais e próximos passos para 100% do plano
 
-## Como os modelos serão integrados no app
-Resumo rápido:
-- Admin instala/gerencia catálogo via `GET /admin/models` e `POST /admin/models/download`.
-- Worker Python materializa os pesos no ambiente de execução.
-- Serviços do app chamam um worker de inferência por `job` (não chamam o modelo direto no front).
-- UI Web/Mobile escolhe modelo por tarefa e acompanha status.
+O repositório já implementa os blocos fundamentais (upload resumível, RAG por sessão, verify/share/referral, notes/execution, integrações MVP), porém ainda há etapas para completar todo o escopo empresarial completo:
+- Web app Next.js completo de produto (atualmente scaffold técnico)
+- Flutter app completo (atualmente scaffold + fluxo upload)
+- billing quota enforcement no gateway em nível de produção
+- pipeline de render real Unreal MRQ e ASR real em produção
+- conectores externos (Notion/Jira/Trello/Zoom/Meet/Teams)
+- CI de codegen OpenAPI→SDK automatizado end-to-end
 
-Detalhamento completo em: `docs/model-integration.md`.
+---
 
+## 11) Scripts
 
-
-## Contexto de uso no app (importante)
-- O produto continua sendo de **criação de avatar e vídeo** (pipeline `avatar-builder` + `voice` + `render`).
-- Llama/MedGemma não renderizam avatar; eles apoiam inteligência de conteúdo (Research, Notes, Q&A, roteiro, resumo).
-- Portanto, funcionam como camada complementar ao fluxo de avatar.
-
-
-## Sessão específica Pesquisa + LLM (implementada)
-Fluxo já implementado no `research-service`:
-1. `POST /research/sessions` cria sessão com `workspace_id`, `user_id`, `topic`, `model_id`, `provider`.
-2. `GET /research/search?provider=&q=` busca papers via adapter real (Crossref/arXiv) ou `fixture`.
-3. `POST /research/sessions/:id/attach` anexa itens selecionados à sessão.
-4. `POST /research/sessions/:id/generate-insights` gera bullets:
-   - usa LLM remoto OpenAI-compatible se `LLM_BASE_URL` estiver configurado;
-   - fallback robusto para engine local extractiva com referências.
-5. `POST /deck/:deck_id/research/summarize` e `/references/export` usam a mesma sessão.
-
-Isso cria um contexto contínuo de pesquisa + geração (sem estado perdido), pronto para consumo por Web/App.
-
-## SDKs
-OpenAPI por serviço em `services/*/openapi.yaml` para gerar SDK TS e Dart via CI.
-
-## Testes
-```bash
-pnpm -r --if-present test
-```
-
-
-## Scripts de desenvolvimento
 ```bash
 make dev
 make test
 make lint
 ```
 
-## Verify + Share + Referral (implementado no MVP técnico)
-- Provenance:
-  - `POST /provenance/issue` emite receipt assinado (Ed25519)
-  - `GET /verify/:content_id` valida assinatura sem expor PII
-  - `POST /provenance/deletion-receipt` emite receipt de deleção
-- Growth:
-  - `POST /growth/share-pages` cria share page com disclosure
-  - `GET /share/:slug` exibe dados públicos sem PII
-  - `POST /growth/referrals/apply` aplica referral com anti-fraude básico (cooldown por IP hash)
+---
 
-## Meeting -> Notes -> Execution (implementado no MVP técnico)
-- Notes & Knowledge:
-  - `POST /notes/generate` gera summary + bullets + evidence chunks
-  - `GET /notes/:meeting_id` recupera notas e evidências
-- Execution:
-  - `POST /execution/generate` gera tasks/decisions/risks/open_questions
-  - `GET /execution/:meeting_id/export?format=json|csv`
-
-## Upload resumível
-- Requisito arquitetural já documentado para TUS/multipart com sessões (`upload_sessions`).
-- Implementação resumível completa no gateway/upload-service está em fase seguinte do roadmap técnico.
-
-
-## Upload resumível real (TUS) implementado
-No `upload-service`:
-- `POST /uploads/tus`
-- `HEAD /uploads/tus/:id`
-- `PATCH /uploads/tus/:id`
-- `POST /uploads/tus/:id/complete`
-- `GET /uploads/sessions/:id`
-
-Detalhes: `docs/upload-resumable.md`.
-
-## Web + Flutter usando o mesmo contrato
-- SDK TS: `packages/sdk-ts/src/upload-client.ts`
-- SDK Dart: `packages/sdk-dart/lib/upload_client.dart`
-- Exemplo Web: `apps/frontend-web/src/upload-flow.ts`
-- Exemplo Flutter: `apps/mobile-app-flutter/lib/upload_flow.dart`
+## 12) Referências rápidas
+- Arquitetura: `docs/architecture.md`
+- Integração de modelos: `docs/model-integration.md`
+- Upload resumível: `docs/upload-resumable.md`

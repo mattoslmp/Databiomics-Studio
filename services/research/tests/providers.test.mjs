@@ -8,3 +8,9 @@ test('provider registry includes crossref and arxiv adapters', () => {
   assert.ok(source.includes('arxivAdapter'));
   assert.ok(source.includes('providerRegistry'));
 });
+
+
+test('research index includes rag qa endpoint', () => {
+  const source = readFileSync(new URL('../src/index.ts', import.meta.url), 'utf8');
+  assert.ok(source.includes('/research/sessions/:id/qa'));
+});

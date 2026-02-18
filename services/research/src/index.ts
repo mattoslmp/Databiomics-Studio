@@ -1,7 +1,7 @@
 import Fastify from 'fastify';
 import { randomUUID } from 'node:crypto';
 import { z } from 'zod';
-import { generateInsights } from './llm.js';
+import { answerWithRag, generateInsights, retrieveTopK } from './llm.js';
 import { attachItems, createSession, getSession, listSessions } from './session-store.js';
 import { providerRegistry, type ResearchItem } from './providers.js';
 
@@ -26,6 +26,12 @@ const createSessionSchema = z.object({
 
 const attachSchema = z.object({
   items: z.array(z.any()).min(1)
+});
+
+const ragSchema = z.object({
+  question: z.string().min(3),
+  include_provider_fallback: z.boolean().default(true),
+  top_k: z.coerce.number().min(1).max(20).default(5)
 });
 
 app.get('/health', async () => ({ status: 'ok', service: 'research' }));
@@ -125,6 +131,48 @@ app.post('/research/sessions/:id/generate-insights', async (req, reply) => {
     model_id: session.model_id,
     engine: result.engine,
     bullets: result.bullets
+  };
+});
+
+app.post('/research/sessions/:id/qa', async (req, reply) => {
+  const { id } = req.params as { id: string };
+  const parsed = ragSchema.safeParse(req.body);
+  if (!parsed.success) return reply.code(400).send({ error: parsed.error.flatten() });
+
+  const session = getSession(id);
+  if (!session) return reply.code(404).send({ error: 'session_not_found' });
+
+  let corpus = session.attached_items;
+  if (parsed.data.include_provider_fallback) {
+    const adapter = providerRegistry[session.provider];
+    if (adapter) {
+      const extra = await adapter.search(parsed.data.question);
+      const dedup = new Map<string, ResearchItem>();
+      for (const item of [...corpus, ...extra]) {
+        dedup.set(`${item.provider}:${item.provider_id}`, item);
+      }
+      corpus = Array.from(dedup.values());
+    }
+  }
+
+  if (corpus.length === 0) {
+    return reply.code(400).send({ error: 'no_context_for_rag' });
+  }
+
+  const selectedContext = retrieveTopK(parsed.data.question, corpus, parsed.data.top_k);
+  const answer = await answerWithRag({
+    model: session.model_id,
+    question: parsed.data.question,
+    contextItems: selectedContext
+  });
+
+  return {
+    session_id: session.id,
+    model_id: session.model_id,
+    provider: session.provider,
+    retrieved_context_size: selectedContext.length,
+    context_refs: selectedContext.map((i) => `${i.provider}:${i.provider_id}`),
+    answer
   };
 });
 

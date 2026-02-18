@@ -7,12 +7,15 @@ services:
       POSTGRES_USER: postgres
       POSTGRES_DB: databiomics
     ports: ["5432:5432"]
+
   redis:
     image: redis:7
     ports: ["6379:6379"]
+
   nats:
     image: nats:2.10
     ports: ["4222:4222"]
+
   minio:
     image: minio/minio:latest
     command: server /data --console-address ":9001"
@@ -20,3 +23,15 @@ services:
       MINIO_ROOT_USER: minio
       MINIO_ROOT_PASSWORD: minio123
     ports: ["9000:9000", "9001:9001"]
+
+  livekit:
+    image: livekit/livekit-server:latest
+    command: --dev --bind 0.0.0.0
+    ports: ["7880:7880", "7881:7881/udp"]
+
+  otel-collector:
+    image: otel/opentelemetry-collector-contrib:latest
+    command: ["--config=/etc/otelcol/config.yaml"]
+    volumes:
+      - ./otel-collector-config.yaml:/etc/otelcol/config.yaml:ro
+    ports: ["4317:4317", "4318:4318"]
