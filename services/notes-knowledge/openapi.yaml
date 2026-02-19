@@ -1,0 +1,21 @@
+openapi: 3.1.0
+info:
+  title: Databiomics notes-knowledge service
+  version: 0.2.0
+paths:
+  /health:
+    get:
+      summary: Health check
+      responses:
+        '200': { description: OK }
+  /notes/generate:
+    post:
+      summary: Gera notas + evidências de transcript
+      responses:
+        '200': { description: Notas geradas }
+  /notes/{meeting_id}:
+    get:
+      summary: Busca notas e evidências por meeting
+      responses:
+        '200': { description: Notas e chunks }
+        '404': { description: Note não encontrada }
