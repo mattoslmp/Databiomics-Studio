@@ -1,0 +1,43 @@
+openapi: 3.1.0
+info:
+  title: Databiomics LLM Gateway Service
+  version: 0.2.0
+paths:
+  /health:
+    get:
+      summary: Healthcheck
+      responses:
+        '200':
+          description: OK
+  /metrics:
+    get:
+      summary: Service counters
+      responses:
+        '200':
+          description: Internal counters
+  /llm-gateway/models:
+    get:
+      summary: List available models
+      responses:
+        '200':
+          description: Model catalog
+  /llm-gateway/route:
+    post:
+      summary: Route task to proper local/external model
+      requestBody:
+        required: true
+      responses:
+        '200':
+          description: Routed response
+  /llm-gateway/usage:
+    get:
+      summary: Usage totals per workspace
+      responses:
+        '200':
+          description: Usage counters
+  /llm-gateway/outbox:
+    get:
+      summary: Last persisted outbox events
+      responses:
+        '200':
+          description: Outbox events
