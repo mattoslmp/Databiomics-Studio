@@ -1,258 +1,162 @@
 # Databiomics Studio
 
-Monorepo API-first do **Databiomics Studio** para MVP SaaS com microserviços desde o início, foco em:
-- Avatar personalizado + vídeo
-- Meeting → Transcript → Notes → Execution
-- Verify/Share/Referral
-- Pesquisa + LLM (RAG por sessão)
-- Multi-cliente (Web + Flutter) consumindo o mesmo contrato OpenAPI
+Plataforma **Databiomics Studio** (API-first, microserviços) para transformar conhecimento em entregáveis: pesquisa, reuniões e documentos viram slides, notas, execução e vídeo.
 
-> Idioma padrão do produto: PT-BR (roadmap EN/ES).
+> Idioma padrão: **PT-BR** (roadmap EN/ES).
 
----
+## 1) Arquitetura
 
-## 1) Arquitetura atual do repositório
+Monorepo:
 
-### Serviços (Node.js + Fastify + Prisma + OpenAPI)
-`services/`
-- `gateway`, `auth`, `workspace`, `billing`, `consent`, `policy`, `profile`
-- `upload`, `avatar-builder`, `voice`, `deck`, `render`, `meetings`, `avatar-bot`
-- `transcription`, `notes-knowledge`, `execution`, `provenance`, `growth`, `marketplace`
-- `research`, `notification`, `admin`, `integrations`
+- `apps/` → clientes (`frontend-web`, `mobile-app-flutter`)
+- `services/` → microserviços Fastify + OpenAPI + Prisma
+- `workers/` → pipelines Python (ASR/media/RAG)
+- `packages/` → SDKs (`sdk-ts`, `sdk-dart`) e compartilhados
+- `infra/` → docker-compose e observabilidade
+- `docs/` → documentação arquitetural/operacional
 
-Cada serviço possui:
-- `src/`
-- `prisma/` + `migrations/`
-- `openapi.yaml`
-- testes em `tests/`
+Serviços core + mídia + meetings + knowledge + admin + novos serviços de IA:
+- `gateway`, `auth`, `workspace`, `billing`, `consent`, `policy`, `profile`, `upload`
+- `avatar-builder`, `voice`, `deck`, `render`
+- `meetings`, `avatar-bot`, `transcription`
+- `notes-knowledge`, `execution`, `provenance`
+- `growth`, `marketplace`, `notification`, `admin`
+- `research`, `llm-gateway`, `rag`
 
-### Clientes e SDKs
-- Web scaffold: `apps/frontend-web/`
-- Flutter scaffold: `apps/mobile-app-flutter/`
-- SDK TS interno: `packages/sdk-ts/`
-- SDK Dart interno: `packages/sdk-dart/`
+## 2) Pré-requisitos (links oficiais)
 
-### Infra local
-`infra/docker-compose.yml` sobe:
-- Postgres
-- Redis
-- NATS
-- MinIO
-- LiveKit
-- OTel Collector
+- Docker + Docker Compose: https://docs.docker.com/get-docker/
+- Node.js LTS: https://nodejs.org/
+- pnpm: https://pnpm.io/installation
+- Python 3.11: https://www.python.org/downloads/
+- Miniconda: https://docs.conda.io/en/latest/miniconda.html
+- FFmpeg: https://ffmpeg.org/download.html
+- LiveKit: https://docs.livekit.io/home/self-hosting/local/
+- MinIO: https://min.io/docs/minio/container/index.html
+- PostgreSQL: https://www.postgresql.org/download/
+- Redis: https://redis.io/docs/getting-started/
+- NATS: https://docs.nats.io/running-a-nats-service/introduction/installation
 
----
+## 3) Ambiente Python (Conda)
 
-## 2) Pré-requisitos
+```bash
+conda create -n databiomics-studio python=3.11
+conda activate databiomics-studio
+pip install -r requirements.txt
+```
 
-- Docker + Docker Compose
-- Node.js LTS
-- pnpm
-- Python 3.11
-- (opcional) Flutter SDK para testar app mobile scaffold
+## 4) Como rodar local
 
----
+Subir infraestrutura:
 
-## 3) Como rodar local
-
-### 3.1 Subir infraestrutura
 ```bash
 make dev
 ```
 
-### 3.2 Rodar testes
+Executar testes:
+
 ```bash
 make test
 ```
 
-### 3.3 Validar contratos OpenAPI
+Validar contratos OpenAPI:
+
 ```bash
 make lint
 ```
 
-### 3.4 Subir um serviço específico (exemplo)
+Executar um serviço específico (exemplo):
+
 ```bash
 cd services/research
 pnpm install
 pnpm dev
 ```
 
----
+## 5) DEV MODE
 
-## 4) Upload resumível real (TUS) — implementado
+Flags principais:
 
-Serviço: `services/upload`
+- `MOCK_MEDIA_PIPELINE=true`
+- `RESEARCH_DEMO_FIXTURES=true` (opcional)
+- `LLM_LOCAL_ONLY=true` (default em dev)
 
-Endpoints:
-- `POST /uploads/tus` (criar sessão)
-- `HEAD /uploads/tus/:id` (consultar offset)
-- `PATCH /uploads/tus/:id` (enviar chunk)
-- `POST /uploads/tus/:id/complete` (finalizar / validar SHA-256)
-- `GET /uploads/sessions/:id` (status da sessão)
+Comportamento DEV MODE:
 
-Persistência de sessão:
-- `services/upload/.data/upload-sessions.json`
+- clone-builder opera com mock mantendo pipeline/estado/receipts
+- render gera placeholder MP4 com watermark
+- transcription pode produzir transcript sample
+- research pode operar com fixtures offline
 
-Campos principais:
-- `workspace_id`, `user_id`, `upload_type`, `protocol`, `expected_size`, `received_size`, `sha256`, `status`, `metadata`
+## 6) SDKs (OpenAPI como fonte de verdade)
 
-Mais detalhes:
-- `docs/upload-resumable.md`
+- SDK TS: `packages/sdk-ts/`
+- SDK Dart: `packages/sdk-dart/`
 
----
+Fluxo recomendado:
+1. atualizar `openapi.yaml` nos serviços
+2. rodar geração de SDKs no pipeline de CI
+3. consumir SDK obrigatório em Web e Mobile
 
-## 5) Contrato único Web + Flutter (OpenAPI/SDK)
+## 7) Research Assist + regra OA/PDF/full-text
 
-### SDK TypeScript
-- `packages/sdk-ts/src/upload-client.ts`
+Providers MVP implementados no serviço de research:
+- fixture (offline)
+- crossref
+- arxiv
 
-### SDK Dart
-- `packages/sdk-dart/lib/upload_client.dart`
+Regra de compliance:
+- **somente baixar/armazenar PDF/full-text** quando houver permissão (OA/licença/PMC/EuropePMC) ou upload do usuário.
+- caso contrário, manter metadados + link externo e preencher `reason_not_available`.
 
-### Exemplo Web (resume/retry por chunks)
-- `apps/frontend-web/src/upload-flow.ts`
+## 8) RAG (grounded)
 
-### Exemplo Flutter (mesmo contrato)
-- `apps/mobile-app-flutter/lib/upload_flow.dart`
+Serviço `rag`:
+- `POST /rag/ingest` → ingere documento e cria chunks citáveis
+- `POST /rag/retrieve` → retrieval top-k com citações por chunk
+- fallback sem contexto retorna: “não encontrei no material fornecido”.
 
----
+## 9) LLM Gateway
 
-## 6) Pesquisa + LLM com RAG por sessão — implementado
+Serviço `llm-gateway`:
+- roteamento por tarefa para modelos locais:
+  - `llama-3.2-1b-instruct` (microtasks)
+  - `llama-3.2-3b-instruct` (sumarização/slides)
+  - `medgemma` (biomédico, com aviso na UI)
+- adapters externos preparados (`openai`, `deepseek`) sob policy `allow_external_llm`
+- endpoint de uso por workspace (`/llm-gateway/usage`)
 
-Serviço: `services/research`
+## 10) LLM local e alternância para OpenAI/DeepSeek
 
-### Providers
-- `fixture` (offline)
-- `crossref` (API pública)
-- `arxiv` (API pública)
+Modo local (recomendado em dev):
+- manter `LLM_LOCAL_ONLY=true`
 
-### Sessão de pesquisa
-- `POST /research/sessions`
-- `GET /research/sessions`
-- `GET /research/sessions/:id`
-- `POST /research/sessions/:id/attach`
-- `POST /research/sessions/:id/generate-insights`
+Modo externo controlado por policy:
+- habilitar policy de workspace `allow_external_llm=true`
+- usar adapter OpenAI/DeepSeek via LLM Gateway
+- registrar auditoria de modelo/tokens/custo/latência
 
-### RAG QA com modelo selecionado
-- `POST /research/sessions/:id/qa`
-  - usa `session.model_id` como modelo selecionado
-  - recupera contexto dos itens anexados + fallback opcional ao provider da sessão
-  - aplica retrieval top-k
-  - responde com citações (`provider:id`)
+## 11) Upload resumível (TUS)
 
-### Integração com Deck
-- `POST /deck/:deck_id/research/attach`
-- `POST /deck/:deck_id/research/summarize`
-- `GET /deck/:deck_id/references`
-- `POST /deck/:deck_id/references/export`
-- `POST /deck/:deck_id/references/render-slides`
+Serviço `upload`:
+- `POST /uploads/tus`
+- `HEAD /uploads/tus/:id`
+- `PATCH /uploads/tus/:id`
+- `POST /uploads/tus/:id/complete`
+- `GET /uploads/sessions/:id`
 
-### Configuração de LLM remoto
-Variáveis:
-- `LLM_BASE_URL`
-- `LLM_API_KEY` (opcional)
+## 12) Troubleshooting
 
-Sem `LLM_BASE_URL`, o serviço usa fallback local extractivo para continuidade.
+- **Porta ocupada**: ajuste `PORT` do serviço e reinicie.
+- **Banco indisponível**: valide containers com `docker ps` e logs do compose.
+- **Falha de provider externo**: usar provider fixture e `RESEARCH_DEMO_FIXTURES=true`.
+- **Sem contexto no RAG**: ingerir documentos antes de consultar (`/rag/ingest`).
+- **LLM externo bloqueado**: revisar policy `allow_external_llm` e segredos.
 
----
-
-## 7) Verify / Share / Referral / Meeting→Execution
-
-### Provenance
-- `POST /provenance/issue`
-- `GET /verify/:content_id`
-- `POST /provenance/deletion-receipt`
-
-### Growth
-- `POST /growth/share-pages`
-- `GET /share/:slug`
-- `POST /growth/referrals/apply`
-- `GET /growth/credits/:user_id`
-
-### Notes
-- `POST /notes/generate`
-- `GET /notes/:meeting_id`
-
-### Execution
-- `POST /execution/generate`
-- `GET /execution/:meeting_id`
-- `GET /execution/:meeting_id/export?format=json|csv`
-
----
-
-## 8) Integrations service (MVP entrada/saída)
-
-Serviço: `services/integrations`
-- `POST /integrations/import` (link/upload)
-- `POST /integrations/export` (notes/tasks)
-- `GET /integrations/jobs`
-
----
-
-## 9) Testes executados no projeto
-
-Comando padrão:
-```bash
-make test
-```
-
-Cobertura atual inclui:
-- health tests por serviço
-- testes de contrato (endpoints declarados)
-- testes de store de upload
-
----
-
-## 10) Limites atuais e próximos passos para 100% do plano
-
-O repositório já implementa os blocos fundamentais (upload resumível, RAG por sessão, verify/share/referral, notes/execution, integrações MVP), porém ainda há etapas para completar todo o escopo empresarial completo:
-- Web app Next.js completo de produto (atualmente scaffold técnico)
-- Flutter app completo (atualmente scaffold + fluxo upload)
-- billing quota enforcement no gateway em nível de produção
-- pipeline de render real Unreal MRQ e ASR real em produção
-- conectores externos (Notion/Jira/Trello/Zoom/Meet/Teams)
-- CI de codegen OpenAPI→SDK automatizado end-to-end
-
----
-
-## 11) Scripts
+## 13) Comandos úteis
 
 ```bash
 make dev
 make test
 make lint
 ```
-
----
-
-## 12) Referências rápidas
-- Arquitetura: `docs/architecture.md`
-- Integração de modelos: `docs/model-integration.md`
-- Upload resumível: `docs/upload-resumable.md`
-
-
-## 13) Status de completude (revisão honesta)
-
-### Implementado neste repositório
-- Upload resumível real TUS com `upload_sessions`.
-- Pesquisa com RAG por sessão usando provider + `model_id` selecionado.
-- Verify/receipts, share/referral anti-fraude básico, notes/execution.
-- Avatar onboarding com estados, QC, liveness e build em modo mock.
-- Voice profile com verificação e clone com gate de plano/validação.
-- Deck templates por nicho (MVP), export mock (pdf/pptx/png).
-- Render job com `content_id`, `verify_url`, watermark flag (mock pipeline).
-- Meetings com disclosure badge, transcription toggle e host approval gate.
-
-### Ainda NÃO equivalente a "Synthesia completo em produção"
-- Pipeline real Unreal + MetaHuman + Audio2Face **não está implementado** neste ambiente (apenas modo mock).
-- Qualidade visual/facial de nível Synthesia depende de stack de produção GPU + Unreal MRQ + assets/licenciamento.
-- Voice cloning de produção (anti-spoof avançado, watermark robusto, biometria forte) exige pipeline especializado adicional.
-- Frontend Next.js completo e app Flutter completo de produto ainda estão em scaffold técnico.
-- Integrações enterprise (SSO/SCIM/Zoom/Meet/Teams/Jira/Notion) ainda não estão completas.
-
-### Como ativar caminho de produção (roadmap técnico)
-1. Provisionar workers GPU + Unreal headless + Audio2Face.
-2. Trocar `MOCK_MEDIA_PIPELINE=false` e implementar worker real de render/avatar.
-3. Integrar ASR real (faster-whisper) e orquestração de jobs via filas/eventos.
-4. Completar frontend Web e Flutter com UX final, autenticação e states E2E.
-5. Implementar CI de codegen OpenAPI -> SDK TS/Dart e E2E de aceite.
