@@ -1,7 +1,7 @@
 openapi: 3.1.0
 info:
   title: Databiomics RAG Service
-  version: 0.1.0
+  version: 0.2.0
 paths:
   /health:
     get:
@@ -9,6 +9,12 @@ paths:
       responses:
         '200':
           description: OK
+  /metrics:
+    get:
+      summary: Service counters
+      responses:
+        '200':
+          description: Internal counters
   /rag/ingest:
     post:
       summary: Ingest documents and chunk with citations
@@ -25,3 +31,9 @@ paths:
       responses:
         '200':
           description: Ranked context chunks
+  /rag/outbox:
+    get:
+      summary: Last persisted outbox events
+      responses:
+        '200':
+          description: Outbox events

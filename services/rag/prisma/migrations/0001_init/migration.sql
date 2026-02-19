@@ -17,3 +17,11 @@ CREATE TABLE IF NOT EXISTS "RagChunk" (
   "pageRef" TEXT,
   "createdAt" TIMESTAMP NOT NULL DEFAULT NOW()
 );
+
+CREATE TABLE IF NOT EXISTS "OutboxEvent" (
+  "id" TEXT PRIMARY KEY,
+  "topic" TEXT NOT NULL,
+  "payload" JSONB NOT NULL,
+  "createdAt" TIMESTAMP NOT NULL DEFAULT NOW(),
+  "publishedAt" TIMESTAMP
+);

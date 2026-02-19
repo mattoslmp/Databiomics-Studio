@@ -4,23 +4,36 @@ import { z } from 'zod';
 
 const app = Fastify({ logger: { level: 'info' } });
 
-const documents = new Map<string, {
-  id: string;
-  workspace_id: string;
-  source_type: string;
-  source_ref: string;
-  title: string;
-  content_hash: string;
-}>();
+const documents = new Map<
+  string,
+  {
+    id: string;
+    workspace_id: string;
+    source_type: string;
+    source_ref: string;
+    title: string;
+    content_hash: string;
+  }
+>();
 
-const chunks = new Map<string, {
+const chunks = new Map<
+  string,
+  {
+    id: string;
+    doc_id: string;
+    content: string;
+    section?: string;
+    page_ref?: string;
+    citation: string;
+  }
+>();
+
+const outboxEvents: Array<{
   id: string;
-  doc_id: string;
-  content: string;
-  section?: string;
-  page_ref?: string;
-  citation: string;
-}>();
+  topic: 'rag.document.ingested' | 'rag.index.updated';
+  payload: Record<string, unknown>;
+  created_at: string;
+}> = [];
 
 const ingestSchema = z.object({
   workspace_id: z.string().min(1),
@@ -41,10 +54,27 @@ const retrieveSchema = z.object({
 function score(query: string, text: string): number {
   const tokens = query.toLowerCase().split(/\W+/).filter(Boolean);
   const base = text.toLowerCase();
-  return tokens.reduce((acc, t) => acc + (base.includes(t) ? 1 : 0), 0);
+  return tokens.reduce((acc, token) => acc + (base.includes(token) ? 1 : 0), 0);
 }
 
+app.addHook('onRequest', async (req, reply) => {
+  if (req.url === '/health' || req.url === '/metrics') return;
+  const workspaceHeader = req.headers['x-workspace-id'];
+  if (!workspaceHeader) {
+    return reply.code(401).send({ error: 'missing_workspace_context' });
+  }
+});
+
 app.get('/health', async () => ({ status: 'ok', service: 'rag' }));
+
+app.get('/metrics', async () => ({
+  service: 'rag',
+  counters: {
+    documents: documents.size,
+    chunks: chunks.size,
+    outbox_depth: outboxEvents.length
+  }
+}));
 
 app.post('/rag/ingest', async (req, reply) => {
   const parsed = ingestSchema.safeParse(req.body);
@@ -61,7 +91,12 @@ app.post('/rag/ingest', async (req, reply) => {
     content_hash: contentHash
   });
 
-  const pieces = parsed.data.content.match(/[^.!?]+[.!?]?/g)?.map((p) => p.trim()).filter(Boolean) ?? [parsed.data.content];
+  const pieces =
+    parsed.data.content
+      .match(/[^.!?]+[.!?]?/g)
+      ?.map((piece) => piece.trim())
+      .filter(Boolean) ?? [parsed.data.content];
+
   const createdChunks = pieces.slice(0, 20).map((piece, index) => {
     const chunkId = randomUUID();
     const citation = `${parsed.data.source_type}:${parsed.data.source_ref}#chunk-${index + 1}`;
@@ -77,10 +112,36 @@ app.post('/rag/ingest', async (req, reply) => {
     return chunk;
   });
 
+  outboxEvents.push({
+    id: randomUUID(),
+    topic: 'rag.document.ingested',
+    payload: {
+      workspace_id: parsed.data.workspace_id,
+      doc_id: docId,
+      source_ref: parsed.data.source_ref,
+      chunk_count: createdChunks.length
+    },
+    created_at: new Date().toISOString()
+  });
+  outboxEvents.push({
+    id: randomUUID(),
+    topic: 'rag.index.updated',
+    payload: {
+      workspace_id: parsed.data.workspace_id,
+      doc_id: docId,
+      content_hash: contentHash
+    },
+    created_at: new Date().toISOString()
+  });
+
   return {
     document: documents.get(docId),
     chunks_created: createdChunks.length,
-    citations: createdChunks.map((chunk) => ({ chunk_id: chunk.id, citation: chunk.citation, snippet: chunk.content.slice(0, 140) }))
+    citations: createdChunks.map((chunk) => ({
+      chunk_id: chunk.id,
+      citation: chunk.citation,
+      snippet: chunk.content.slice(0, 140)
+    }))
   };
 });
 
@@ -103,7 +164,7 @@ app.post('/rag/retrieve', async (req, reply) => {
 
   const ranked = pool
     .map((chunk) => ({ chunk, score: score(parsed.data.question, chunk.content) }))
-    .sort((a, b) => b.score - a.score)
+    .sort((left, right) => right.score - left.score)
     .slice(0, parsed.data.top_k)
     .map(({ chunk, score: chunkScore }) => {
       const doc = documents.get(chunk.doc_id);
@@ -125,6 +186,11 @@ app.post('/rag/retrieve', async (req, reply) => {
     citations: ranked
   };
 });
+
+app.get('/rag/outbox', async () => ({
+  total: outboxEvents.length,
+  events: outboxEvents.slice(-50)
+}));
 
 const port = Number(process.env.PORT ?? 3012);
 app.listen({ port, host: '0.0.0.0' }).catch((err) => {

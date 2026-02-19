@@ -11,3 +11,11 @@ CREATE TABLE IF NOT EXISTS "LlmRequest" (
   "externalMode" BOOLEAN NOT NULL DEFAULT FALSE,
   "createdAt" TIMESTAMP NOT NULL DEFAULT NOW()
 );
+
+CREATE TABLE IF NOT EXISTS "OutboxEvent" (
+  "id" TEXT PRIMARY KEY,
+  "topic" TEXT NOT NULL,
+  "payload" JSONB NOT NULL,
+  "createdAt" TIMESTAMP NOT NULL DEFAULT NOW(),
+  "publishedAt" TIMESTAMP
+);

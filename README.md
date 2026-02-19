@@ -15,7 +15,7 @@ Monorepo:
 - `infra/` → docker-compose e observabilidade
 - `docs/` → documentação arquitetural/operacional
 
-Serviços core + mídia + meetings + knowledge + admin + novos serviços de IA:
+Serviços core + mídia + meetings + knowledge + admin + IA:
 - `gateway`, `auth`, `workspace`, `billing`, `consent`, `policy`, `profile`, `upload`
 - `avatar-builder`, `voice`, `deck`, `render`
 - `meetings`, `avatar-bot`, `transcription`
@@ -47,46 +47,24 @@ pip install -r requirements.txt
 
 ## 4) Como rodar local
 
-Subir infraestrutura:
-
 ```bash
 make dev
-```
-
-Executar testes:
-
-```bash
 make test
-```
-
-Validar contratos OpenAPI:
-
-```bash
 make lint
-```
-
-Executar um serviço específico (exemplo):
-
-```bash
-cd services/research
-pnpm install
-pnpm dev
 ```
 
 ## 5) DEV MODE
 
 Flags principais:
-
 - `MOCK_MEDIA_PIPELINE=true`
 - `RESEARCH_DEMO_FIXTURES=true` (opcional)
 - `LLM_LOCAL_ONLY=true` (default em dev)
 
 Comportamento DEV MODE:
-
-- clone-builder opera com mock mantendo pipeline/estado/receipts
-- render gera placeholder MP4 com watermark
-- transcription pode produzir transcript sample
-- research pode operar com fixtures offline
+- clone-builder em modo mock com estados e receipts
+- render com placeholder MP4 + watermark
+- transcription com transcript sample
+- research com fixtures offline
 
 ## 6) SDKs (OpenAPI como fonte de verdade)
 
@@ -94,69 +72,58 @@ Comportamento DEV MODE:
 - SDK Dart: `packages/sdk-dart/`
 
 Fluxo recomendado:
-1. atualizar `openapi.yaml` nos serviços
-2. rodar geração de SDKs no pipeline de CI
-3. consumir SDK obrigatório em Web e Mobile
+1. Atualizar `openapi.yaml` nos serviços
+2. Gerar SDKs no CI
+3. Consumir SDK obrigatório em Web e Mobile
 
 ## 7) Research Assist + regra OA/PDF/full-text
 
-Providers MVP implementados no serviço de research:
-- fixture (offline)
-- crossref
-- arxiv
+Providers MVP no serviço `research`: fixture, crossref, arxiv.
 
 Regra de compliance:
 - **somente baixar/armazenar PDF/full-text** quando houver permissão (OA/licença/PMC/EuropePMC) ou upload do usuário.
-- caso contrário, manter metadados + link externo e preencher `reason_not_available`.
+- caso contrário: metadados + link externo + `reason_not_available`.
 
 ## 8) RAG (grounded)
 
 Serviço `rag`:
-- `POST /rag/ingest` → ingere documento e cria chunks citáveis
-- `POST /rag/retrieve` → retrieval top-k com citações por chunk
-- fallback sem contexto retorna: “não encontrei no material fornecido”.
+- `POST /rag/ingest`
+- `POST /rag/retrieve`
+- `GET /rag/outbox`
+- `GET /metrics`
+
+Regras implementadas:
+- chunking com citações por origem (`source_ref` + índice)
+- retrieval top-k com referências por chunk
+- fallback sem evidência: “não encontrei no material fornecido”
+- outbox com eventos `rag.document.ingested` e `rag.index.updated`
 
 ## 9) LLM Gateway
 
 Serviço `llm-gateway`:
-- roteamento por tarefa para modelos locais:
-  - `llama-3.2-1b-instruct` (microtasks)
-  - `llama-3.2-3b-instruct` (sumarização/slides)
-  - `medgemma` (biomédico, com aviso na UI)
-- adapters externos preparados (`openai`, `deepseek`) sob policy `allow_external_llm`
-- endpoint de uso por workspace (`/llm-gateway/usage`)
+- `GET /llm-gateway/models`
+- `POST /llm-gateway/route`
+- `GET /llm-gateway/usage`
+- `GET /llm-gateway/outbox`
+- `GET /metrics`
 
-## 10) LLM local e alternância para OpenAI/DeepSeek
+Regras implementadas:
+- roteamento por tarefa para `llama-3.2-1b-instruct`, `llama-3.2-3b-instruct`, `medgemma`
+- fallback externo via policy (`allow_external_llm`)
+- metering por workspace (`tokens_in`, `tokens_out`, `external_requests`)
+- outbox com eventos `llm.request.completed` e `usage.metered`
 
-Modo local (recomendado em dev):
-- manter `LLM_LOCAL_ONLY=true`
+## 10) Segurança e transparência (parte 1)
 
-Modo externo controlado por policy:
-- habilitar policy de workspace `allow_external_llm=true`
-- usar adapter OpenAI/DeepSeek via LLM Gateway
-- registrar auditoria de modelo/tokens/custo/latência
+Controles já presentes no backend MVP:
+- autenticação contextual por header de workspace nos serviços `llm-gateway` e `rag`
+- logs estruturados via Fastify logger
+- validação de entrada com `zod`
+- healthcheck + métricas internas por serviço
 
-## 11) Upload resumível (TUS)
+## 11) Troubleshooting
 
-Serviço `upload`:
-- `POST /uploads/tus`
-- `HEAD /uploads/tus/:id`
-- `PATCH /uploads/tus/:id`
-- `POST /uploads/tus/:id/complete`
-- `GET /uploads/sessions/:id`
-
-## 12) Troubleshooting
-
-- **Porta ocupada**: ajuste `PORT` do serviço e reinicie.
-- **Banco indisponível**: valide containers com `docker ps` e logs do compose.
-- **Falha de provider externo**: usar provider fixture e `RESEARCH_DEMO_FIXTURES=true`.
-- **Sem contexto no RAG**: ingerir documentos antes de consultar (`/rag/ingest`).
+- **Porta ocupada**: ajuste `PORT` do serviço.
+- **Infra indisponível**: valide `docker ps` e logs do compose.
+- **Sem contexto no RAG**: ingerir documentos antes do retrieval.
 - **LLM externo bloqueado**: revisar policy `allow_external_llm` e segredos.
-
-## 13) Comandos úteis
-
-```bash
-make dev
-make test
-make lint
-```
