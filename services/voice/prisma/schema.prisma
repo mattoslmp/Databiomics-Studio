@@ -7,6 +7,30 @@ generator client {
   provider = "prisma-client-js"
 }
 
+model VoiceProfile {
+  id               String   @id @default(cuid())
+  workspaceId      String
+  userId           String
+  voiceProfileId   String   @unique
+  verified         Boolean  @default(false)
+  watermarkEnabled Boolean  @default(true)
+  createdAt        DateTime @default(now())
+}
+
+model SpeechJob {
+  id          String   @id @default(cuid())
+  jobId       String   @unique
+  workspaceId String
+  userId      String
+  source      String
+  mode        String
+  status      String
+  textHash    String
+  textPreview String
+  audioRef    String
+  createdAt   DateTime @default(now())
+}
+
 model OutboxEvent {
   id          String   @id @default(cuid())
   aggregateId String

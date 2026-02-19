@@ -16,6 +16,9 @@ Monorepo:
 - `docs/` → documentação arquitetural/operacional
 
 Serviços core + mídia + meetings + knowledge + admin + IA:
+
+- `voice` agora suporta `POST /voice/synthesize-from-slides` para texto→áudio a partir de notes de slides (PPT/deck), com job rastreável em `GET /voice/jobs/{job_id}`.
+- `avatar-builder` aplica similarity gate no build e retorna `preview_video_ref` quando READY.
 - `gateway`, `auth`, `workspace`, `billing`, `consent`, `policy`, `profile`, `upload`
 - `avatar-builder`, `voice`, `deck`, `render`
 - `meetings`, `avatar-bot`, `transcription`

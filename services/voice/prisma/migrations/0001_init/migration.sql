@@ -1,3 +1,27 @@
+CREATE TABLE IF NOT EXISTS "VoiceProfile" (
+  "id" TEXT PRIMARY KEY,
+  "workspaceId" TEXT NOT NULL,
+  "userId" TEXT NOT NULL,
+  "voiceProfileId" TEXT NOT NULL UNIQUE,
+  "verified" BOOLEAN NOT NULL DEFAULT FALSE,
+  "watermarkEnabled" BOOLEAN NOT NULL DEFAULT TRUE,
+  "createdAt" TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP
+);
+
+CREATE TABLE IF NOT EXISTS "SpeechJob" (
+  "id" TEXT PRIMARY KEY,
+  "jobId" TEXT NOT NULL UNIQUE,
+  "workspaceId" TEXT NOT NULL,
+  "userId" TEXT NOT NULL,
+  "source" TEXT NOT NULL,
+  "mode" TEXT NOT NULL,
+  "status" TEXT NOT NULL,
+  "textHash" TEXT NOT NULL,
+  "textPreview" TEXT NOT NULL,
+  "audioRef" TEXT NOT NULL,
+  "createdAt" TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP
+);
+
 CREATE TABLE IF NOT EXISTS "OutboxEvent" (
   "id" TEXT PRIMARY KEY,
   "aggregateId" TEXT NOT NULL,
