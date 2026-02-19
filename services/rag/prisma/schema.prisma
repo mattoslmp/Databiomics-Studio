@@ -1,0 +1,36 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+model RagDocument {
+  id          String   @id @default(uuid())
+  workspaceId String
+  sourceType  String
+  sourceRef   String
+  title       String
+  contentHash String
+  createdAt   DateTime @default(now())
+}
+
+model RagChunk {
+  id          String   @id @default(uuid())
+  documentId  String
+  section     String?
+  content     String
+  citationRef String
+  pageRef     String?
+  createdAt   DateTime @default(now())
+}
+
+model OutboxEvent {
+  id          String   @id @default(uuid())
+  topic       String
+  payload     Json
+  createdAt   DateTime @default(now())
+  publishedAt DateTime?
+}

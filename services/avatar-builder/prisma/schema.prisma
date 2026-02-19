@@ -7,6 +7,30 @@ generator client {
   provider = "prisma-client-js"
 }
 
+model Avatar {
+  id              String   @id @default(cuid())
+  avatarId        String   @unique
+  userId          String
+  workspaceId     String
+  status          String
+  verified        Boolean  @default(false)
+  qualityScore    Float?
+  similarityScore Float?
+  previewVideoRef String?
+  reasonCode      String?
+  pipelineVersion String
+  createdAt       DateTime @default(now())
+}
+
+model AvatarUpload {
+  id        String   @id @default(cuid())
+  avatarId  String
+  type       String
+  ref        String
+  hash       String
+  createdAt  DateTime @default(now())
+}
+
 model OutboxEvent {
   id          String   @id @default(cuid())
   aggregateId String
