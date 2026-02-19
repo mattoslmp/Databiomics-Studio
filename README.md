@@ -229,3 +229,30 @@ make lint
 - Arquitetura: `docs/architecture.md`
 - Integração de modelos: `docs/model-integration.md`
 - Upload resumível: `docs/upload-resumable.md`
+
+
+## 13) Status de completude (revisão honesta)
+
+### Implementado neste repositório
+- Upload resumível real TUS com `upload_sessions`.
+- Pesquisa com RAG por sessão usando provider + `model_id` selecionado.
+- Verify/receipts, share/referral anti-fraude básico, notes/execution.
+- Avatar onboarding com estados, QC, liveness e build em modo mock.
+- Voice profile com verificação e clone com gate de plano/validação.
+- Deck templates por nicho (MVP), export mock (pdf/pptx/png).
+- Render job com `content_id`, `verify_url`, watermark flag (mock pipeline).
+- Meetings com disclosure badge, transcription toggle e host approval gate.
+
+### Ainda NÃO equivalente a "Synthesia completo em produção"
+- Pipeline real Unreal + MetaHuman + Audio2Face **não está implementado** neste ambiente (apenas modo mock).
+- Qualidade visual/facial de nível Synthesia depende de stack de produção GPU + Unreal MRQ + assets/licenciamento.
+- Voice cloning de produção (anti-spoof avançado, watermark robusto, biometria forte) exige pipeline especializado adicional.
+- Frontend Next.js completo e app Flutter completo de produto ainda estão em scaffold técnico.
+- Integrações enterprise (SSO/SCIM/Zoom/Meet/Teams/Jira/Notion) ainda não estão completas.
+
+### Como ativar caminho de produção (roadmap técnico)
+1. Provisionar workers GPU + Unreal headless + Audio2Face.
+2. Trocar `MOCK_MEDIA_PIPELINE=false` e implementar worker real de render/avatar.
+3. Integrar ASR real (faster-whisper) e orquestração de jobs via filas/eventos.
+4. Completar frontend Web e Flutter com UX final, autenticação e states E2E.
+5. Implementar CI de codegen OpenAPI -> SDK TS/Dart e E2E de aceite.

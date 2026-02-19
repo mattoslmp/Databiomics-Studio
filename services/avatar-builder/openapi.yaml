@@ -1,17 +1,40 @@
 openapi: 3.1.0
 info:
   title: Databiomics avatar-builder service
-  version: 0.1.0
+  version: 0.2.0
 paths:
   /health:
     get:
       summary: Health check
       responses:
-        '200':
-          description: OK
-  /v1/events/outbox:
-    get:
-      summary: Outbox contract preview
+        '200': { description: OK }
+  /avatars:
+    post:
+      summary: Cria avatar onboarding
       responses:
-        '200':
-          description: Contract payload
+        '200': { description: Avatar criado }
+  /avatars/{avatar_id}/uploads:
+    post:
+      summary: Registra uploads de facescan/talk/photos/body
+      responses:
+        '200': { description: Upload registrado }
+  /avatars/{avatar_id}/qc:
+    post:
+      summary: Executa quality check
+      responses:
+        '200': { description: QC executado }
+  /avatars/{avatar_id}/liveness:
+    post:
+      summary: Executa desafio de liveness
+      responses:
+        '200': { description: Liveness executado }
+  /avatars/{avatar_id}/build:
+    post:
+      summary: Inicia build de avatar (mock/prod)
+      responses:
+        '200': { description: Build iniciado }
+  /avatars/{avatar_id}:
+    get:
+      summary: Consulta estado do avatar
+      responses:
+        '200': { description: Avatar }

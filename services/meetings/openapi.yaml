@@ -1,17 +1,30 @@
 openapi: 3.1.0
 info:
   title: Databiomics meetings service
-  version: 0.1.0
+  version: 0.2.0
 paths:
   /health:
     get:
       summary: Health check
       responses:
-        '200':
-          description: OK
-  /v1/events/outbox:
-    get:
-      summary: Outbox contract preview
+        '200': { description: OK }
+  /meetings:
+    post:
+      summary: Cria meeting com disclosure badge
       responses:
-        '200':
-          description: Contract payload
+        '200': { description: Meeting criada }
+  /meetings/{meeting_id}/transcription:
+    post:
+      summary: Habilita/desabilita transcrição (banner)
+      responses:
+        '200': { description: Transcrição atualizada }
+  /meetings/{meeting_id}/avatar-bot-approval:
+    post:
+      summary: Host approval gate para avatar bot
+      responses:
+        '200': { description: Approval atualizado }
+  /meetings/{meeting_id}:
+    get:
+      summary: Consulta meeting
+      responses:
+        '200': { description: Meeting }

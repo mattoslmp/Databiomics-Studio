@@ -1,17 +1,25 @@
 openapi: 3.1.0
 info:
   title: Databiomics voice service
-  version: 0.1.0
+  version: 0.2.0
 paths:
   /health:
     get:
       summary: Health check
       responses:
-        '200':
-          description: OK
-  /v1/events/outbox:
-    get:
-      summary: Outbox contract preview
+        '200': { description: OK }
+  /voice/profiles:
+    post:
+      summary: Cria perfil de voz
       responses:
-        '200':
-          description: Contract payload
+        '200': { description: Perfil criado }
+  /voice/profiles/{voice_profile_id}/verify:
+    post:
+      summary: Verifica prova de posse de voz
+      responses:
+        '200': { description: Perfil verificado }
+  /voice/synthesize:
+    post:
+      summary: Gera áudio por TTS/clone (clone exige Pro + verificação)
+      responses:
+        '200': { description: Áudio gerado }
