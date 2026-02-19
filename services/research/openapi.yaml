@@ -1,0 +1,85 @@
+openapi: 3.1.0
+info:
+  title: Databiomics research service
+  version: 0.3.0
+paths:
+  /health:
+    get:
+      summary: Health check
+      responses:
+        '200': { description: OK }
+  /research/providers:
+    get:
+      summary: Lista providers disponíveis
+      responses:
+        '200': { description: Providers }
+  /research/search:
+    get:
+      summary: Busca papers por provider
+      responses:
+        '200': { description: Resultados de busca }
+  /research/item/{provider}/{id}:
+    get:
+      summary: Busca item normalizado
+      responses:
+        '200': { description: Item }
+        '404': { description: Não encontrado }
+  /research/resolve-fulltext:
+    post:
+      summary: Resolve elegibilidade de full-text
+      responses:
+        '200': { description: Status OA/restrito }
+  /research/sessions:
+    post:
+      summary: Cria sessão específica de pesquisa + LLM
+      responses:
+        '200': { description: Sessão criada }
+    get:
+      summary: Lista sessões
+      responses:
+        '200': { description: Sessões }
+  /research/sessions/{id}:
+    get:
+      summary: Obtém sessão
+      responses:
+        '200': { description: Sessão }
+  /research/sessions/{id}/attach:
+    post:
+      summary: Anexa itens na sessão
+      responses:
+        '200': { description: Sessão atualizada }
+  /research/sessions/{id}/generate-insights:
+    post:
+      summary: Gera insights via LLM remoto ou engine local extractiva
+      responses:
+        '200': { description: Bullets com referências }
+  /research/sessions/{id}/qa:
+    post:
+      summary: RAG de sessão (providers + contexto anexado) usando model_id selecionado
+      responses:
+        '200': { description: Resposta com citações }
+  /deck/{deck_id}/research/attach:
+    post:
+      summary: Anexa pesquisa ao deck via session_id
+      responses:
+        '200': { description: Anexado }
+  /deck/{deck_id}/research/summarize:
+    post:
+      summary: Resume conteúdo da sessão para deck
+      responses:
+        '200': { description: Resumo }
+  /deck/{deck_id}/references:
+    get:
+      summary: Lista referências por session_id
+      responses:
+        '200': { description: Referências }
+  /deck/{deck_id}/references/export:
+    post:
+      summary: Exporta referências (BibTeX/CSL-JSON/RIS)
+      responses:
+        '200': { description: Export de referências }
+  /deck/{deck_id}/references/render-slides:
+    post:
+      summary: Calcula/gera slides de referências
+      responses:
+        '200': { description: Quantidade de slides }

@@ -1,0 +1,25 @@
+openapi: 3.1.0
+info:
+  title: Databiomics integrations service
+  version: 0.1.0
+paths:
+  /health:
+    get:
+      summary: Health check
+      responses:
+        '200': { description: OK }
+  /integrations/import:
+    post:
+      summary: Importa conteúdo por link/upload
+      responses:
+        '200': { description: Import job criado }
+  /integrations/export:
+    post:
+      summary: Exporta notes/tasks
+      responses:
+        '200': { description: Export job criado }
+  /integrations/jobs:
+    get:
+      summary: Lista jobs de integração
+      responses:
+        '200': { description: Jobs }

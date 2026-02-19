@@ -1,0 +1,8 @@
+CREATE TABLE IF NOT EXISTS "OutboxEvent" (
+  "id" TEXT PRIMARY KEY,
+  "aggregateId" TEXT NOT NULL,
+  "eventType" TEXT NOT NULL,
+  "payload" JSONB NOT NULL,
+  "publishedAt" TIMESTAMP,
+  "createdAt" TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP
+);
