@@ -1,0 +1,13 @@
+CREATE TABLE IF NOT EXISTS "LlmRequest" (
+  "id" TEXT PRIMARY KEY,
+  "workspaceId" TEXT NOT NULL,
+  "userId" TEXT NOT NULL,
+  "model" TEXT NOT NULL,
+  "taskType" TEXT NOT NULL,
+  "tokensIn" INTEGER NOT NULL DEFAULT 0,
+  "tokensOut" INTEGER NOT NULL DEFAULT 0,
+  "latencyMs" INTEGER NOT NULL DEFAULT 0,
+  "policyId" TEXT,
+  "externalMode" BOOLEAN NOT NULL DEFAULT FALSE,
+  "createdAt" TIMESTAMP NOT NULL DEFAULT NOW()
+);
