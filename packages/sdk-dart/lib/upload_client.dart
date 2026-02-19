@@ -35,6 +35,18 @@ class UploadApiDart {
     return response.statusCode;
   }
 
+  Future<Map<String, dynamic>> getTusSessionOffset(String sessionId) async {
+    final response = await http.head(
+      Uri.parse('$baseUrl/uploads/tus/$sessionId'),
+      headers: _headers({'Tus-Resumable': '1.0.0'}),
+    );
+    return {
+      'status': response.statusCode,
+      'offset': response.headers['upload-offset'],
+      'length': response.headers['upload-length'],
+    };
+  }
+
   Future<Map<String, dynamic>> complete(String sessionId, {String? sha256}) async {
     final response = await http.post(
       Uri.parse('$baseUrl/uploads/tus/$sessionId/complete'),

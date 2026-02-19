@@ -38,6 +38,19 @@ export class UploadApiTs {
     return { status: res.status, nextOffset: res.headers.get('Upload-Offset') };
   }
 
+  async getTusSessionOffset(sessionId: string) {
+    const res = await fetch(`${this.baseUrl}/uploads/tus/${sessionId}`, {
+      method: 'HEAD',
+      headers: this.headers({ 'Tus-Resumable': '1.0.0' })
+    });
+
+    return {
+      status: res.status,
+      offset: res.headers.get('Upload-Offset'),
+      length: res.headers.get('Upload-Length')
+    };
+  }
+
   async complete(sessionId: string, sha256?: string) {
     const res = await fetch(`${this.baseUrl}/uploads/tus/${sessionId}/complete`, {
       method: 'POST',
