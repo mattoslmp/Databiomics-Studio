@@ -8,4 +8,7 @@ test('upload service declares tus endpoints', () => {
   assert.ok(src.includes('/uploads/tus/:id'));
   assert.ok(src.includes('/uploads/tus/:id/complete'));
   assert.ok(src.includes('/uploads/sessions/:id'));
+  assert.ok(src.includes("app.head('/uploads/tus/:id'"));
+  assert.ok(src.includes("reply.header('Upload-Offset'"));
+  assert.ok(src.includes("reply.header('Upload-Length'"));
 });

@@ -26,3 +26,16 @@ As sessões são gravadas em `services/upload/.data/upload-sessions.json`, com:
 ## Exemplo de consumo
 - Web: `apps/frontend-web/src/upload-flow.ts`.
 - Flutter: `apps/mobile-app-flutter/lib/upload_flow.dart`.
+
+
+## Retomada de upload interrompido (sem omissões)
+Os SDKs agora expõem consulta de offset/length de sessão:
+- TypeScript: `getTusSessionOffset(sessionId)`
+- Dart: `getTusSessionOffset(sessionId)`
+
+Os fluxos de exemplo (`apps/frontend-web` e `apps/mobile-app-flutter`) aceitam `existingSessionId` opcional e seguem este comportamento:
+1. Consultam `HEAD /uploads/tus/:id`.
+2. Se `404`, criam uma nova sessão.
+3. Se `204`, validam `Upload-Length` vs tamanho do arquivo local.
+4. Retomam o envio a partir de `Upload-Offset`.
+5. Em cada `PATCH`, preferem o `Upload-Offset` retornado pelo servidor como fonte da verdade.
