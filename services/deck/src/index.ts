@@ -19,7 +19,7 @@ function loadDb(): Db { try { return JSON.parse(readFileSync(dbPath, 'utf8')) as
 function saveDb(db: Db): void { mkdirSync(dirname(dbPath), { recursive: true }); writeFileSync(dbPath, JSON.stringify(db, null, 2)); }
 
 app.get('/health', async () => ({ status: 'ok', service: env.SERVICE_NAME }));
-app.get('/v1/events/outbox', async () => ({ event: 'deck.initialized', message: 'Outbox event contract placeholder for NATS publication.' }));
+app.get('/v1/events/outbox', async () => ({ events: [{ type: 'deck.ready', topic: 'deck.ready' }, { type: 'usage.metered', topic: 'usage.metered' }] }));
 
 app.get('/deck/templates', async () => ({
   categories: {
@@ -57,7 +57,7 @@ app.get('/decks/:deck_id/export', async (req, reply) => {
   const deck = loadDb().decks.find((d) => d.deck_id === deck_id);
   if (!deck) return reply.code(404).send({ error: 'deck_not_found' });
   const format = query.format ?? 'pdf';
-  return { deck_id, format, output_ref: `s3://mock-deck/${deck_id}.${format}` };
+  return { deck_id, format, output_ref: `s3://deck-exports/${deck_id}.${format}`, hyperlinks_preserved: true };
 });
 
 app.addHook('onRequest', async (req, reply) => {
