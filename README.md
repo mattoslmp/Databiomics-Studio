@@ -263,7 +263,9 @@ Registry versionado e endpoint para inspeção operacional.
 - Hardening SRE completo: circuit breaker global, backpressure, DLQ auditada, runbooks.
 - Segurança/privacidade avançada (PII redaction externa por policy, controles finos de compartilhamento).
 
----
+### 10.2 Mensageria/eventos
+- Expandir publicação/consumo em NATS para jobs de ingestão, render e inferência.
+- Aplicar DLQ + retry com backoff para resiliência.
 
 ## 12) Guia rápido de operação
 
@@ -297,4 +299,23 @@ make test
 - O repositório aplica regra de compliance para PDF/full-text em `research`.
 - Não assuma download automático de artigos fechados.
 - Para conteúdo não OA, use metadados/links externos ou upload explícito do usuário.
+
+
+---
+
+
+## 15) Gap detalhado para produção (solicitado)
+
+Para acompanhamento executivo/técnico dos itens que ainda faltam para produção (frontend premium, pipeline real de avatar, ASR robusto, quotas hard, SSO/SCIM, hardening SRE e segurança avançada), consulte:
+
+- `docs/production-readiness-gap.md`
+
+Resumo objetivo do status atual:
+- Frontend web/mobile premium: **não finalizado** (há scaffold técnico).
+- Render/avatar real Unreal MRQ/MetaHuman/A2F: **não finalizado** (DEV mode/mock predominante).
+- ASR/transcrição produção com custo observável: **não finalizado**.
+- Quotas completas e billing enforcement hard: **parcial**.
+- SSO/SCIM + integrações enterprise: **não finalizado**.
+- Hardening SRE completo (circuit breaker/backpressure/DLQ/runbooks): **parcial**.
+- Segurança/privacidade avançada (PII redaction por policy, sharing fino): **parcial**.
 
