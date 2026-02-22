@@ -1,7 +1,7 @@
 openapi: 3.1.0
 info:
   title: Databiomics research service
-  version: 0.3.0
+  version: 0.4.0
 paths:
   /health:
     get:
@@ -10,9 +10,14 @@ paths:
         '200': { description: OK }
   /research/providers:
     get:
-      summary: Lista providers disponíveis
+      summary: Lista providers disponíveis com rate-limit policy
       responses:
         '200': { description: Providers }
+  /research/providers/registry:
+    get:
+      summary: Retorna versão do registry de providers
+      responses:
+        '200': { description: Registry }
   /research/search:
     get:
       summary: Busca papers por provider
@@ -26,7 +31,7 @@ paths:
         '404': { description: Não encontrado }
   /research/resolve-fulltext:
     post:
-      summary: Resolve elegibilidade de full-text
+      summary: Resolve elegibilidade de full-text/PDF com compliance OA/licença
       responses:
         '200': { description: Status OA/restrito }
   /research/sessions:

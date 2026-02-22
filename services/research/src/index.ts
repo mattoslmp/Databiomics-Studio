@@ -24,9 +24,7 @@ const createSessionSchema = z.object({
   provider: z.string().default('fixture')
 });
 
-const attachSchema = z.object({
-  items: z.array(z.any()).min(1)
-});
+const attachSchema = z.object({ items: z.array(z.any()).min(1) });
 
 const ragSchema = z.object({
   question: z.string().min(3),
@@ -37,13 +35,22 @@ const ragSchema = z.object({
 app.get('/health', async () => ({ status: 'ok', service: 'research' }));
 
 app.get('/research/providers', async () =>
-  Object.keys(providerRegistry).map((id) => ({ id, status: 'enabled' }))
+  Object.values(providerRegistry.providers).map((provider) => ({
+    id: provider.id,
+    status: 'enabled',
+    rate_limit_policy: provider.rate_limit_policy()
+  }))
 );
+
+app.get('/research/providers/registry', async () => ({
+  registry_version: providerRegistry.registry_version,
+  providers: Object.keys(providerRegistry.providers)
+}));
 
 app.get('/research/search', async (req, reply) => {
   const parsed = searchQuery.safeParse(req.query);
   if (!parsed.success) return reply.code(400).send({ error: parsed.error.flatten() });
-  const adapter = providerRegistry[parsed.data.provider];
+  const adapter = providerRegistry.providers[parsed.data.provider];
   if (!adapter) return reply.code(404).send({ error: 'provider_not_found' });
 
   const items = await adapter.search(parsed.data.q, {
@@ -62,26 +69,26 @@ app.get('/research/search', async (req, reply) => {
 
 app.get('/research/item/:provider/:id', async (req, reply) => {
   const { provider, id } = req.params as { provider: string; id: string };
-  const adapter = providerRegistry[provider];
+  const adapter = providerRegistry.providers[provider];
   if (!adapter) return reply.code(404).send({ error: 'provider_not_found' });
-  const item = await adapter.getItem(id);
+  const item = await adapter.get_item(id);
   if (!item) return reply.code(404).send({ error: 'item_not_found' });
   return item;
 });
 
-app.post('/research/resolve-fulltext', async (req) => {
-  const body = req.body as { item: ResearchItem };
+app.post('/research/resolve-fulltext', async (req, reply) => {
+  const body = req.body as { provider?: string; item: ResearchItem; source?: 'provider' | 'upload' };
   const item = body?.item;
-  if (!item) return { status: 'invalid', reason: 'missing item payload' };
+  if (!item) return reply.code(400).send({ status: 'invalid', reason_not_available: 'missing item payload' });
 
-  if (item.oa_status === 'oa' && item.pdf_url) {
-    return { status: 'allowed', reason: 'open access', pdf_url: item.pdf_url };
+  if (body.source === 'upload') {
+    return { status: 'allowed', pdf_url_if_allowed: item.pdf_url, reason_not_available: null };
   }
-  return {
-    status: 'restricted',
-    reason: 'Não OA / licença não permite download automático',
-    open_url: item.url
-  };
+
+  const adapter = providerRegistry.providers[body.provider ?? item.provider];
+  if (!adapter) return reply.code(404).send({ status: 'invalid', reason_not_available: 'provider_not_found' });
+
+  return adapter.resolve_fulltext(item);
 });
 
 app.post('/research/sessions', async (req, reply) => {
@@ -116,22 +123,10 @@ app.post('/research/sessions/:id/generate-insights', async (req, reply) => {
   const { id } = req.params as { id: string };
   const session = getSession(id);
   if (!session) return reply.code(404).send({ error: 'session_not_found' });
-  if (session.attached_items.length === 0) {
-    return reply.code(400).send({ error: 'no_attached_items' });
-  }
+  if (session.attached_items.length === 0) return reply.code(400).send({ error: 'no_attached_items' });
 
-  const result = await generateInsights({
-    model: session.model_id,
-    topic: session.topic,
-    items: session.attached_items
-  });
-
-  return {
-    session_id: session.id,
-    model_id: session.model_id,
-    engine: result.engine,
-    bullets: result.bullets
-  };
+  const result = await generateInsights({ model: session.model_id, topic: session.topic, items: session.attached_items });
+  return { session_id: session.id, model_id: session.model_id, engine: result.engine, bullets: result.bullets };
 });
 
 app.post('/research/sessions/:id/qa', async (req, reply) => {
@@ -144,43 +139,33 @@ app.post('/research/sessions/:id/qa', async (req, reply) => {
 
   let corpus = session.attached_items;
   if (parsed.data.include_provider_fallback) {
-    const adapter = providerRegistry[session.provider];
+    const adapter = providerRegistry.providers[session.provider];
     if (adapter) {
       const extra = await adapter.search(parsed.data.question);
       const dedup = new Map<string, ResearchItem>();
-      for (const item of [...corpus, ...extra]) {
-        dedup.set(`${item.provider}:${item.provider_id}`, item);
-      }
+      for (const item of [...corpus, ...extra]) dedup.set(`${item.provider}:${item.provider_id}`, item);
       corpus = Array.from(dedup.values());
     }
   }
 
-  if (corpus.length === 0) {
-    return reply.code(400).send({ error: 'no_context_for_rag' });
-  }
+  if (corpus.length === 0) return reply.code(400).send({ error: 'no_context_for_rag' });
 
   const selectedContext = retrieveTopK(parsed.data.question, corpus, parsed.data.top_k);
-  const answer = await answerWithRag({
-    model: session.model_id,
-    question: parsed.data.question,
-    contextItems: selectedContext
-  });
+  const answer = await answerWithRag({ model: session.model_id, question: parsed.data.question, contextItems: selectedContext });
 
   return {
     session_id: session.id,
     model_id: session.model_id,
     provider: session.provider,
     retrieved_context_size: selectedContext.length,
-    context_refs: selectedContext.map((i) => `${i.provider}:${i.provider_id}`),
+    context_refs: selectedContext.map((item) => `${item.provider}:${item.provider_id}`),
     answer
   };
 });
 
 app.post('/deck/:deck_id/research/attach', async (req, reply) => {
   const body = req.body as { session_id: string; items: ResearchItem[] };
-  if (!body?.session_id || !Array.isArray(body?.items)) {
-    return reply.code(400).send({ error: 'invalid_payload' });
-  }
+  if (!body?.session_id || !Array.isArray(body?.items)) return reply.code(400).send({ error: 'invalid_payload' });
   const session = attachItems(body.session_id, body.items);
   if (!session) return reply.code(404).send({ error: 'session_not_found' });
   return { attached: true, session_id: session.id, attached_items: session.attached_items.length };
@@ -191,7 +176,6 @@ app.post('/deck/:deck_id/research/summarize', async (req, reply) => {
   if (!body?.session_id) return reply.code(400).send({ error: 'session_id_required' });
   const session = getSession(body.session_id);
   if (!session) return reply.code(404).send({ error: 'session_not_found' });
-
   const result = await generateInsights({ model: session.model_id, topic: session.topic, items: session.attached_items });
   return { session_id: session.id, engine: result.engine, bullets: result.bullets };
 });
@@ -210,19 +194,30 @@ app.post('/deck/:deck_id/references/export', async (req, reply) => {
   const format = body.format ?? 'bibtex';
   if (format === 'bibtex') {
     const bibtex = session.attached_items
-      .map((item, i) => `@article{ref${i + 1},\n  title={${item.title}},\n  year={${item.year}},\n  url={${item.url}}\n}`)
+      .map(
+        (item, i) =>
+          `@article{ref${i + 1},\n  title={${item.title}},\n  year={${item.year}},\n  doi={${item.doi ?? ''}},\n  url={${item.url}}\n}`
+      )
       .join('\n\n');
     return { format, content: bibtex };
   }
+
   if (format === 'ris') {
     const ris = session.attached_items
-      .map((item) => `TY  - JOUR\nTI  - ${item.title}\nPY  - ${item.year}\nUR  - ${item.url}\nER  -`)
+      .map((item) => `TY  - JOUR\nTI  - ${item.title}\nPY  - ${item.year}\nDO  - ${item.doi ?? ''}\nUR  - ${item.url}\nER  -`)
       .join('\n\n');
     return { format, content: ris };
   }
+
   return {
     format,
-    content: session.attached_items.map((item) => ({ title: item.title, year: item.year, url: item.url }))
+    content: session.attached_items.map((item) => ({
+      title: item.title,
+      year: item.year,
+      DOI: item.doi,
+      URL: item.url,
+      author: item.authors
+    }))
   };
 });
 
