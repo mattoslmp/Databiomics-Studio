@@ -263,7 +263,9 @@ Registry versionado e endpoint para inspeção operacional.
 - Hardening SRE completo: circuit breaker global, backpressure, DLQ auditada, runbooks.
 - Segurança/privacidade avançada (PII redaction externa por policy, controles finos de compartilhamento).
 
----
+### 10.2 Mensageria/eventos
+- Expandir publicação/consumo em NATS para jobs de ingestão, render e inferência.
+- Aplicar DLQ + retry com backoff para resiliência.
 
 ## 12) Guia rápido de operação
 
